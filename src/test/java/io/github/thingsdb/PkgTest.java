@@ -44,12 +44,9 @@ public class PkgTest
 
         Pkg cmpPkg = Pkg.newFromByteBuffer(buf);
 
-        System.out.println(cmpPkg.pid);
-
         assertTrue( pkg.pid == cmpPkg.pid );
 
-
-        MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(cmpPkg.getBytes());
+        MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(cmpPkg.getData());
         int numStr = unpacker.unpackArrayHeader();
 
         assertTrue( numStr == 2 );
@@ -59,8 +56,6 @@ public class PkgTest
             strs[i] = unpacker.unpackString();
         }
         unpacker.close();
-
-        System.out.println(strs[0]);
 
         assertTrue( strs[0].equals("Hello") );
         assertTrue( strs[1].equals("ThingsDB"));

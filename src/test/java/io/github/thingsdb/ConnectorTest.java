@@ -16,13 +16,14 @@ public class ConnectorTest
     /**
      * Rigorous Test :-)
      * @throws IOException
+     * @throws InterruptedException
      */
     @Test
-    public void shouldConnectToPlayground() throws IOException
+    public void shouldConnectToPlayground() throws IOException, InterruptedException
     {
         Connector client = new Connector("localhost");
         client.connect();
-
+        Thread.sleep(1000);
         assertTrue( true );
     }
 }

@@ -46,21 +46,25 @@ public class Pkg {
     }
 
     public static Pkg newFromByteBuffer(ByteBuffer buf) throws ProtoException {
+        // Read all the Package header variable
         int size = buf.getInt();
-        System.out.println(size);
         int pid = (int) (buf.getShort() & 0xffff);
-
         byte protoType = buf.get();
         byte protoChk = buf.get();
+
+        // Check if the checkbit is correct
         if (protoChk != (byte) (protoType ^ 0xff)) {
             throw new ProtoCheckbitFailure("Invalid package check bit");
         }
+        // Find the correct proto type
         Proto proto = Proto.fromType(protoType);
 
+        // Create the package
         Pkg pkg = new Pkg(proto, pid, size);
-        System.out.println(size);
-        int pos = 0;
-        buf.get(pkg.data, pos, size);
+
+        // Load the package data into the package buffer
+        buf.get(pkg.data, buf.position(), size);
+
         return pkg;
     }
 
@@ -69,6 +73,8 @@ public class Pkg {
     }
 
     public ByteBuffer getData() {
+        // We do not care about ENDIANESS here since this is the data which
+        // will most likely be used for MessagePack or something similar
         return ByteBuffer.wrap(data, PKG_HEADER_SIZE, getDataSize());
     }
 

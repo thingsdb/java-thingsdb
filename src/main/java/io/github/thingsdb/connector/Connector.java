@@ -19,11 +19,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.msgpack.core.MessageBufferPacker;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 
 import io.github.thingsdb.connector.lib.Conn;
 import io.github.thingsdb.connector.lib.Node;
+import io.github.thingsdb.connector.lib.Pkg;
+import io.github.thingsdb.connector.lib.Proto;
 import io.github.thingsdb.connector.lib.Result;
 
 /**
@@ -76,6 +79,16 @@ public class Connector implements ConnectorInterface {
         conn.start();
     }
 
+    public void authenticate(String token) {
+        MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
+        packer.packString(token);
+        packer.close();
+
+        ensureWrite(Proto.REQ_AUTH, packer);
+
+        conn.channel.write(buf);
+    }
+
     private Node getNode() {
         return nodes.get(activeNodeId);
     }
@@ -86,18 +99,19 @@ public class Connector implements ConnectorInterface {
         return Integer.valueOf(pid);
     }
 
-    private Future<Result> ensureWrite(String code) {
+    private Future<Result> ensureWrite(Proto proto, MessageBufferPacker packer) throws IOException {
         Integer pid = getNextPid();
 
         CompletableFuture<byte[]> future = new CompletableFuture<>();
 
         respMap.put(pid, future);
 
-        return executor.submit(() -> {
-            Thread.sleep(1000);
-            return Result.newResult(code.getBytes());
-        });
+        Pkg pkg = Pkg.newFromPacker(proto, pid, packer);
 
+        conn.channel.write(pkg.getBytes());
+
+        future.completedFuture();
+
+        return future;
     }
-
 }
