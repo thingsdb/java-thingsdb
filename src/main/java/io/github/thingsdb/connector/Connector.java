@@ -1,5 +1,6 @@
 package io.github.thingsdb.connector;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -21,6 +22,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 
+import io.github.thingsdb.connector.lib.Conn;
 import io.github.thingsdb.connector.lib.Node;
 import io.github.thingsdb.connector.lib.Result;
 
@@ -35,8 +37,9 @@ public class Connector implements ConnectorInterface {
     private final List<Node> nodes;
     private final ExecutorService executor;
     private char nextPid;
-    private int activeNodeId = 0;
+    private int activeNodeId;
     private ReentrantLock mutex = new ReentrantLock();
+    private Conn conn = null;
 
     public Connector(String host) {
         this(host, 9200, 4);
@@ -48,9 +51,9 @@ public class Connector implements ConnectorInterface {
 
         executor = Executors.newFixedThreadPool(nThreads);
         nextPid = 0;
+        conn = null;
 
         addNode(host, port);
-        // completionHandlers = new HashMap<>();
     }
 
     @Override
@@ -63,21 +66,18 @@ public class Connector implements ConnectorInterface {
         nodes.add(new Node(host, 9200));
     }
 
-    public query(String code) {
-        ensureWrite()
+    public void query(String code) {
+        ensureWrite(code);
     }
 
-    private void connect() {
-        InetAddress serverIPAddress = InetAddress.getByName("localhost");
-        int port = 19000;
-        InetSocketAddress serverAddress = new InetSocketAddress(
-            serverIPAddress, port);
-        SocketChannel channel = SocketChannel.open();
-        channel.configureBlocking(false);
-        channel.connect(serverAddress);
-        Selector selector = Selector.open();
-        int operations = SelectionKey.OP_CONNECT | SelectionKey.OP_READ | SelectionKey.OP_WRITE;
-        channel.register(selector, operations);
+    public void connect() throws IOException {
+        Node node = getNode();
+        conn = new Conn(node);
+        conn.start();
+    }
+
+    private Node getNode() {
+        return nodes.get(activeNodeId);
     }
 
     private synchronized Integer getNextPid() {

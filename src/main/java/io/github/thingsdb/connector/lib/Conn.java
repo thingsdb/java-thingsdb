@@ -1,11 +1,9 @@
-package io.github.thingsdb.connector.conn;
+package io.github.thingsdb.connector.lib;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.SocketChannel;
-
-import io.github.thingsdb.connector.node.Node;
 
 public class Conn extends Thread {
 

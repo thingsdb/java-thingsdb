@@ -1,4 +1,4 @@
-package io.github.thingsdb.connector.node;
+package io.github.thingsdb.connector.lib;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;

@@ -1,4 +1,4 @@
-package io.github.thingsdb.connector.result;
+package io.github.thingsdb.connector.lib;
 
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
