@@ -36,7 +36,7 @@ public class Connector implements ConnectorInterface {
 
     public boolean autoReconnect = true;
 
-    private final Map<Integer, CompletableFuture<byte[]>> respMap;
+    private final Map<Integer, CompletableFuture<Result>> respMap;
     private final List<Node> nodes;
     private final ExecutorService executor;
     private char nextPid;
@@ -70,7 +70,7 @@ public class Connector implements ConnectorInterface {
     }
 
     public void query(String code) {
-        ensureWrite(code);
+        // ensureWrite(code);
     }
 
     public void connect() throws IOException {
@@ -79,14 +79,12 @@ public class Connector implements ConnectorInterface {
         conn.start();
     }
 
-    public void authenticate(String token) {
+    public Future<Result> authenticate(String token) throws IOException {
         MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
         packer.packString(token);
         packer.close();
 
-        ensureWrite(Proto.REQ_AUTH, packer);
-
-        conn.channel.write(buf);
+        return ensureWrite(Proto.REQ_AUTH, packer);
     }
 
     private Node getNode() {
@@ -99,18 +97,16 @@ public class Connector implements ConnectorInterface {
         return Integer.valueOf(pid);
     }
 
-    private Future<Result> ensureWrite(Proto proto, MessageBufferPacker packer) throws IOException {
+    private CompletableFuture<Result> ensureWrite(Proto proto, MessageBufferPacker packer) throws IOException {
         Integer pid = getNextPid();
 
-        CompletableFuture<byte[]> future = new CompletableFuture<>();
+        CompletableFuture<Result> future = new CompletableFuture<>();
 
         respMap.put(pid, future);
 
         Pkg pkg = Pkg.newFromPacker(proto, pid, packer);
 
-        conn.channel.write(pkg.getBytes());
-
-        future.completedFuture();
+        conn.write(pkg.getBytes());
 
         return future;
     }
