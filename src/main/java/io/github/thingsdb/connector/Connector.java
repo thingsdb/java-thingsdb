@@ -1,19 +1,9 @@
 package io.github.thingsdb.connector;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.nio.channels.AsynchronousByteChannel;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -22,7 +12,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.msgpack.core.MessageBufferPacker;
 import org.msgpack.core.MessagePack;
-import org.msgpack.core.MessageUnpacker;
 
 import io.github.thingsdb.connector.lib.Conn;
 import io.github.thingsdb.connector.lib.Node;
@@ -39,7 +28,6 @@ public class Connector implements ConnectorInterface {
     public boolean autoReconnect = true;
 
     private final List<Node> nodes;
-    private final ExecutorService executor;
     private char nextPid;
     private int activeNodeId;
     private ReentrantLock mutex = new ReentrantLock();
@@ -55,7 +43,6 @@ public class Connector implements ConnectorInterface {
         nodes = Collections.synchronizedList(new ArrayList<>());
         respMap = new RespMap();
 
-        executor = Executors.newFixedThreadPool(nThreads);
         nextPid = 0;
         conn = null;
         scope = "/thingsdb";
