@@ -1,17 +1,28 @@
 package io.github.thingsdb.connector.lib;
 
-import org.msgpack.core.MessagePack;
+import java.nio.ByteBuffer;
+
 import org.msgpack.core.MessageUnpacker;
+import org.msgpack.core.MessagePack.UnpackerConfig;
+import org.msgpack.core.buffer.ByteBufferInput;
 import org.msgpack.core.buffer.MessageBufferInput;
 
 public class Result extends MessageUnpacker{
-    public Result(MessageBufferInput in, MessagePack.UnpackerConfig config) {
+
+    public final ResultType TYPE;
+
+    private static final UnpackerConfig DEFAULT_UNPACKER_CONFIG = new UnpackerConfig();
+    private static final MessageBufferInput EMPTY = new ByteBufferInput(ByteBuffer.allocateDirect(0));
+
+    public static final Result RESULT_OK = new Result(ResultType.OK, EMPTY, DEFAULT_UNPACKER_CONFIG);
+    public static final Result RESULT_PONG = new Result(ResultType.PONG, EMPTY, DEFAULT_UNPACKER_CONFIG);
+
+    protected Result(ResultType type, MessageBufferInput in, UnpackerConfig config) {
         super(in, config);
+        TYPE = type;
     }
 
-    public static Result newResult(byte[] contents)
-    {
-        MessageUnpacker unp = MessagePack.newDefaultUnpacker(contents);
-        return Result.class.cast(unp);
+    public static Result newResult(ByteBuffer contents) {
+        return new Result(ResultType.DATA, new ByteBufferInput(contents), DEFAULT_UNPACKER_CONFIG);
     }
 }

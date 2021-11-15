@@ -43,6 +43,7 @@ public class PkgTest
         ByteBuffer buf = pkg.getBytes();
 
         Pkg cmpPkg = Pkg.newFromByteBuffer(buf);
+        cmpPkg.setData(buf);
 
         assertTrue( pkg.pid == cmpPkg.pid );
 

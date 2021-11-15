@@ -12,11 +12,12 @@ import io.github.thingsdb.connector.exceptions.ProtoException;
 
 public class Pkg {
 
+    public static final int PKG_HEADER_SIZE = 8;
+
     public final Proto proto;
     public int pid;
 
     private byte[] data;
-    private static final int PKG_HEADER_SIZE = 8;
 
     public Pkg(Proto proto, int pid, int size) {
         this.proto = proto;
@@ -62,10 +63,16 @@ public class Pkg {
         // Create the package
         Pkg pkg = new Pkg(proto, pid, size);
 
-        // Load the package data into the package buffer
-        buf.get(pkg.data, buf.position(), size);
-
+        // Return te package (data is not loaded yet)
         return pkg;
+    }
+
+    public void setData(ByteBuffer buf) {
+        // Load the package data into the package buffer
+        int size = getDataSize();
+        int pos = buf.position();
+        buf.get(data, pos, size);
+        buf.position(pos + size);
     }
 
     public int getDataSize() {
@@ -76,6 +83,12 @@ public class Pkg {
         // We do not care about ENDIANESS here since this is the data which
         // will most likely be used for MessagePack or something similar
         return ByteBuffer.wrap(data, PKG_HEADER_SIZE, getDataSize());
+    }
+
+    public ByteBuffer getWriteBuffer() {
+        ByteBuffer buf = ByteBuffer.wrap(data, 0, data.length);
+        buf.position(Pkg.PKG_HEADER_SIZE);
+        return buf;
     }
 
     public ByteBuffer getBytes() {

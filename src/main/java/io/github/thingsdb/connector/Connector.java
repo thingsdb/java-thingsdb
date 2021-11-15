@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousByteChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -27,6 +28,7 @@ import io.github.thingsdb.connector.lib.Conn;
 import io.github.thingsdb.connector.lib.Node;
 import io.github.thingsdb.connector.lib.Pkg;
 import io.github.thingsdb.connector.lib.Proto;
+import io.github.thingsdb.connector.lib.RespMap;
 import io.github.thingsdb.connector.lib.Result;
 
 /**
@@ -36,13 +38,14 @@ public class Connector implements ConnectorInterface {
 
     public boolean autoReconnect = true;
 
-    private final Map<Integer, CompletableFuture<Result>> respMap;
     private final List<Node> nodes;
     private final ExecutorService executor;
     private char nextPid;
     private int activeNodeId;
     private ReentrantLock mutex = new ReentrantLock();
     private Conn conn = null;
+    private RespMap respMap;
+    private String scope;
 
     public Connector(String host) {
         this(host, 9200, 4);
@@ -50,11 +53,12 @@ public class Connector implements ConnectorInterface {
 
     public Connector(String host, int port, int nThreads) {
         nodes = Collections.synchronizedList(new ArrayList<>());
-        respMap =  Collections.synchronizedMap(new HashMap<>());
+        respMap = new RespMap();
 
         executor = Executors.newFixedThreadPool(nThreads);
         nextPid = 0;
         conn = null;
+        scope = "/thingsdb";
 
         addNode(host, port);
     }
@@ -69,22 +73,55 @@ public class Connector implements ConnectorInterface {
         nodes.add(new Node(host, 9200));
     }
 
-    public void query(String code) {
-        // ensureWrite(code);
-    }
-
     public void connect() throws IOException {
         Node node = getNode();
-        conn = new Conn(node);
+        conn = new Conn(node, respMap);
         conn.start();
     }
 
-    public Future<Result> authenticate(String token) throws IOException {
+    public Future<Result> authenticate(String token) {
         MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
-        packer.packString(token);
-        packer.close();
+        try {
+            packer.packString(token);
+            packer.close();
 
-        return ensureWrite(Proto.REQ_AUTH, packer);
+            return ensureWrite(Proto.REQ_AUTH, packer);
+        } catch (IOException ex) {
+            CompletableFuture<Result> future = new CompletableFuture<>();
+            future.completeExceptionally(ex);
+            return future;
+        }
+    }
+
+    public Future<Result> query(String code, String scope, byte[] args) {
+        MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
+        try {
+            packer.packArrayHeader(args == null ? 2 : 3);
+            packer.packString(scope);
+            packer.packString(code);
+            if (args != null) {
+                packer.addPayload(args);
+            }
+            packer.close();
+
+            return ensureWrite(Proto.REQ_QUERY, packer);
+        } catch (IOException ex) {
+            CompletableFuture<Result> future = new CompletableFuture<>();
+            future.completeExceptionally(ex);
+            return future;
+        }
+    }
+
+    public Future<Result> query(String code, String scope) {
+        return query(code, scope, null);
+    }
+
+    public Future<Result> query(String code, byte[] args) {
+        return query(code, scope, args);
+    }
+
+    public Future<Result> query(String code) {
+        return query(code, scope, null);
     }
 
     private Node getNode() {
@@ -100,11 +137,9 @@ public class Connector implements ConnectorInterface {
     private CompletableFuture<Result> ensureWrite(Proto proto, MessageBufferPacker packer) throws IOException {
         Integer pid = getNextPid();
 
-        CompletableFuture<Result> future = new CompletableFuture<>();
+        CompletableFuture<Result> future = respMap.register(pid);
 
-        respMap.put(pid, future);
-
-        Pkg pkg = Pkg.newFromPacker(proto, pid, packer);
+        Pkg pkg = Pkg.newFromPacker(proto, pid.intValue(), packer);
 
         conn.write(pkg.getBytes());
 

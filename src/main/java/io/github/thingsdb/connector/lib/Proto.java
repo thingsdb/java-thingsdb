@@ -1,6 +1,6 @@
 package io.github.thingsdb.connector.lib;
 
-import io.github.thingsdb.connector.exceptions.ProtoNotFound;
+import io.github.thingsdb.connector.exceptions.ProtoUnknown;
 
 
 public enum Proto {
@@ -46,12 +46,12 @@ public enum Proto {
     public byte type() { return tp; };
     public String toString() { return name; };
 
-    public static Proto fromType(byte tp) throws ProtoNotFound {
+    public static Proto fromType(byte tp) throws ProtoUnknown {
         for (Proto proto : Proto.values()) {
             if (proto.tp == tp) {
                 return proto;
             }
         }
-        throw new ProtoNotFound(String.format("Proto with type %d not found", tp));
+        throw new ProtoUnknown(String.format("Proto with type %d not found", (int) tp));
     }
 }
