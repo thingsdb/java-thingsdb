@@ -1,4 +1,4 @@
-package io.github.thingsdb.connector.lib;
+package io.github.thingsdb.connector;
 
 import java.nio.ByteBuffer;
 

@@ -1,4 +1,4 @@
-package io.github.thingsdb.connector.lib;
+package io.github.thingsdb.connector;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -31,7 +31,7 @@ import io.github.thingsdb.connector.exceptions.ValueError;
 import io.github.thingsdb.connector.exceptions.WriteUVError;
 import io.github.thingsdb.connector.exceptions.ZeroDivError;
 
-public class TiError {
+class TiError {
     static public TiException fromData(ByteBuffer data) {
         MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(data);
         try {

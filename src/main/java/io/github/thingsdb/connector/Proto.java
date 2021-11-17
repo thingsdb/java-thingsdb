@@ -1,4 +1,4 @@
-package io.github.thingsdb.connector.lib;
+package io.github.thingsdb.connector;
 
 import io.github.thingsdb.connector.exceptions.ProtoUnknown;
 

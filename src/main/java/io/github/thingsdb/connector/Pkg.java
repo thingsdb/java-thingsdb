@@ -1,4 +1,4 @@
-package io.github.thingsdb.connector.lib;
+package io.github.thingsdb.connector;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -10,7 +10,7 @@ import org.msgpack.core.buffer.MessageBuffer;
 import io.github.thingsdb.connector.exceptions.ProtoCheckbitFailure;
 import io.github.thingsdb.connector.exceptions.ProtoException;
 
-public class Pkg {
+class Pkg {
 
     public static final int PKG_HEADER_SIZE = 8;
 

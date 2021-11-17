@@ -1,4 +1,4 @@
-package io.github.thingsdb.connector.lib;
+package io.github.thingsdb.connector;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -11,21 +11,25 @@ import org.slf4j.LoggerFactory;
 import io.github.thingsdb.connector.exceptions.PackageIdNotFound;
 import io.github.thingsdb.connector.exceptions.ProtoException;
 
-public class Conn extends Thread {
+class Conn extends Thread {
 
     private static Logger log = LoggerFactory.getLogger(Conn.class);
 
     private final SocketChannel channel;
     private ByteBuffer buf = null;
-    private final RespMap respMap;
+    private volatile Connector client;
 
-    public Conn(Node node, RespMap respMap) throws IOException {
+    public Conn(Node node, Connector client) throws IOException {
         channel = SocketChannel.open();
         channel.configureBlocking(true);
         channel.connect(node.getSocketAddress());
         buf = ByteBuffer.allocate(0xffff);
         buf.order(ByteOrder.LITTLE_ENDIAN);
-        this.respMap = respMap;
+        this.client = client;
+    }
+
+    public String toString() {
+        return channel.toString();
     }
 
     public void run() {
@@ -52,7 +56,9 @@ public class Conn extends Thread {
 
                 if (rbuf.remaining() == rbuf.capacity()) {
                     try {
-                        respMap.handle(pkg);
+                        if (client != null) {
+                            client.handle(pkg);
+                        }
                     } catch (PackageIdNotFound e) {
                         log.error(e.getMessage());
                     }
@@ -82,7 +88,9 @@ public class Conn extends Thread {
                 if (rbuf.remaining() >= pkg.getDataSize()) {
                     pkg.setData(rbuf);
                     try {
-                        respMap.handle(pkg);
+                        if (client != null) {
+                            client.handle(pkg);
+                        }
                     } catch (PackageIdNotFound e) {
                         log.error(e.getMessage());
                     }
@@ -100,15 +108,18 @@ public class Conn extends Thread {
                 break;
             }
         }
-
-        try {
-            channel.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     public int write(ByteBuffer buf) throws IOException {
         return channel.write(buf);
+    }
+
+    public void close() throws IOException {
+        channel.close();
+        client = null;
+    }
+
+    public boolean isConnected() {
+        return isAlive() && channel.isConnected();
     }
 }

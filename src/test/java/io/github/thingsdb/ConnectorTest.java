@@ -6,13 +6,13 @@ import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
 import io.github.thingsdb.connector.Connector;
-import io.github.thingsdb.connector.exceptions.ZeroDivError;
-import io.github.thingsdb.connector.lib.Result;
-import io.github.thingsdb.connector.lib.ResultType;
+import io.github.thingsdb.connector.Result;
+import io.github.thingsdb.connector.ResultType;
 
 /**
  * Unit test for simple App.
@@ -51,6 +51,8 @@ public class ConnectorTest
             assertEquals(e.getMessage(), "io.github.thingsdb.connector.exceptions.ZeroDivError: division or modulo by zero");
         }
 
+        TimeUnit.SECONDS.sleep(10);
+
         fut = client.query("range(500).reduce(|a, b| a + b, 10);");
         fut2 = client.query("range(500).reduce(|a, b| a + b, 42);");
 
@@ -59,5 +61,8 @@ public class ConnectorTest
 
         assertEquals(res.unpackInt(), 124760);
         assertEquals(res2.unpackInt(), 124792);
+
+        TimeUnit.SECONDS.sleep(1);
+
     }
 }

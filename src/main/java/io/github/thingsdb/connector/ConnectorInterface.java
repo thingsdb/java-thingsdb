@@ -1,5 +1,8 @@
 package io.github.thingsdb.connector;
 
+import java.io.IOException;
+import java.util.concurrent.Future;
+
 /**
  * Client connector for communicating with ThingsDB.
  * <p>
@@ -22,8 +25,47 @@ public interface ConnectorInterface {
      */
     void addNode(String host);
 
+    /**
+     * Set the default scope for the connector. Initially the default scope is set to `/thingsdb`.
+     *
+     * @param scope will be set to the new default scope.
+     */
+    void setDefaultScope(String scope);
 
+    /**
+     * @return the default scope of the connector
+     */
+    String getDefaultScope();
+
+    /**
+     * Disable auto re-connect. Auto re-connect is enabled be default.
+     * Once auto re-connect is disabled, it is not possible enable this option.
+     */
+    void disableAutoReconnect();
+
+    /**
+     * Close the connection.
+     * @throws IOException
+     */
+    void close() throws IOException;
+
+    /**
+     * Connect to ThingsDB.
+     * @throws IOException
+     */
+    void connect() throws IOException;
+
+    public Future<Result> authenticate(String token);
+    public Future<Result> authenticate(String username, String password);
+
+    public Future<Result> query(String code, String scope, byte[] args);
+    public Future<Result> query(String code, String scope);
+    public Future<Result> query(String code, byte[] args);
+    public Future<Result> query(String code);
+
+    /**
+     * @return a {@link String} representing the connection.
+     */
+    public String toString();
 }
-
-
 
