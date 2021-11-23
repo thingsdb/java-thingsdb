@@ -32,7 +32,7 @@ import io.github.thingsdb.connector.exceptions.WriteUVError;
 import io.github.thingsdb.connector.exceptions.ZeroDivError;
 
 class TiError {
-    static public TiException fromData(ByteBuffer data) {
+    static TiException fromData(ByteBuffer data) {
         MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(data);
         try {
             TiException exp;

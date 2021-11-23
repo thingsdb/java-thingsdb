@@ -10,11 +10,11 @@ import io.github.thingsdb.connector.exceptions.CancelledBeforeCompletion;
 class RespMap {
     private final Map<Integer, CompletableFuture<Result>> requests;
 
-    public RespMap() {
-        requests =  Collections.synchronizedMap(new HashMap<>());
+    RespMap() {
+        requests = Collections.synchronizedMap(new HashMap<>());
     }
 
-    public CompletableFuture<Result> register(Integer pid) {
+    CompletableFuture<Result> register(Integer pid) {
         CompletableFuture<Result> future = new CompletableFuture<>();
         CompletableFuture<Result> prev = requests.remove(pid);
         if (prev != null) {
@@ -24,7 +24,7 @@ class RespMap {
         return future;
     }
 
-    public CompletableFuture<Result> get(Integer pid) {
+    CompletableFuture<Result> get(Integer pid) {
         return requests.get(pid);
     }
 }

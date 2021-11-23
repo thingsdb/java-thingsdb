@@ -43,7 +43,9 @@ public enum Proto {
         this.name = name;
     }
 
-    public byte type() { return tp; };
+    byte type() { return tp; };
+
+    @Override
     public String toString() { return name; };
 
     public static Proto fromType(byte tp) throws ProtoUnknown {

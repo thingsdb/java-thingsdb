@@ -19,7 +19,7 @@ class Conn extends Thread {
     private ByteBuffer buf = null;
     private volatile Connector client;
 
-    public Conn(Node node, Connector client) throws IOException {
+    Conn(Node node, Connector client) throws IOException {
         channel = SocketChannel.open();
         channel.configureBlocking(true);
         channel.connect(node.getSocketAddress());
@@ -28,10 +28,12 @@ class Conn extends Thread {
         this.client = client;
     }
 
+    @Override
     public String toString() {
         return channel.toString();
     }
 
+    @Override
     public void run() {
 
         Pkg pkg = null;
@@ -110,16 +112,16 @@ class Conn extends Thread {
         }
     }
 
-    public int write(ByteBuffer buf) throws IOException {
+    int write(ByteBuffer buf) throws IOException {
         return channel.write(buf);
     }
 
-    public void close() throws IOException {
+    void close() throws IOException {
         channel.close();
         client = null;
     }
 
-    public boolean isConnected() {
+    boolean isConnected() {
         return isAlive() && channel.isConnected();
     }
 }

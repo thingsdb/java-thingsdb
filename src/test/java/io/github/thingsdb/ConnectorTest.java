@@ -13,9 +13,10 @@ import org.junit.Test;
 import io.github.thingsdb.connector.Connector;
 import io.github.thingsdb.connector.Result;
 import io.github.thingsdb.connector.ResultType;
+import io.github.thingsdb.connector.Vars;
 
 /**
- * Unit test for simple App.
+ * Unit test for the connector
  */
 public class ConnectorTest
 {
@@ -29,6 +30,7 @@ public class ConnectorTest
     @Test
     public void shouldConnectToPlayground() throws IOException, InterruptedException, ExecutionException
     {
+        Vars vars1, vars2;
         Future<Result> fut, fut2;
         Result res, res2;
         Connector client = new Connector("localhost");
@@ -51,10 +53,15 @@ public class ConnectorTest
             assertEquals(e.getMessage(), "io.github.thingsdb.connector.exceptions.ZeroDivError: division or modulo by zero");
         }
 
-        TimeUnit.SECONDS.sleep(10);
+        vars1 = new Vars();
+        vars1.setInt("val", 10);
 
-        fut = client.query("range(500).reduce(|a, b| a + b, 10);");
-        fut2 = client.query("range(500).reduce(|a, b| a + b, 42);");
+        vars2 = new Vars();
+        vars2.setInt("val", 42);
+
+        fut = client.query("range(500).reduce(|a, b| a + b, val);", vars1);
+
+        fut2 = client.query("range(500).reduce(|a, b| a + b, val);", vars2);
 
         res = fut.get();
         res2 = fut2.get();
@@ -63,6 +70,5 @@ public class ConnectorTest
         assertEquals(res2.unpackInt(), 124792);
 
         TimeUnit.SECONDS.sleep(1);
-
     }
 }

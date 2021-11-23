@@ -7,7 +7,7 @@ import io.github.thingsdb.connector.Result;
 
 public class RoomEvent {
     public final Proto proto;
-    public final int id;
+    public final long id;
     public final String event;
     public final Result args;
 
@@ -15,7 +15,7 @@ public class RoomEvent {
         int size = result.unpackMapHeader();
 
         result.unpackString();  // id
-        int id = result.unpackInt();
+        long id = result.unpackLong();
         String event = null;
         Result args = null;
 
@@ -29,7 +29,7 @@ public class RoomEvent {
         return new RoomEvent(proto, id, event, args);
     }
 
-    public RoomEvent(Proto proto, int id, String event, Result args) {
+    public RoomEvent(Proto proto, long id, String event, Result args) {
         this.proto = proto;
         this.id = id;
         this.event = event;

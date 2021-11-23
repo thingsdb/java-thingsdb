@@ -9,11 +9,10 @@ import org.msgpack.core.buffer.MessageBufferInput;
 
 public class Result extends MessageUnpacker{
 
-    public final ResultType TYPE;
-
     private static final UnpackerConfig DEFAULT_UNPACKER_CONFIG = new UnpackerConfig();
     private static final MessageBufferInput EMPTY = new ByteBufferInput(ByteBuffer.allocateDirect(0));
 
+    public final ResultType TYPE;
     public static final Result RESULT_OK = new Result(ResultType.OK, EMPTY, DEFAULT_UNPACKER_CONFIG);
     public static final Result RESULT_PONG = new Result(ResultType.PONG, EMPTY, DEFAULT_UNPACKER_CONFIG);
 
@@ -22,7 +21,7 @@ public class Result extends MessageUnpacker{
         TYPE = type;
     }
 
-    public static Result newResult(ByteBuffer contents) {
+    protected static Result newResult(ByteBuffer contents) {
         return new Result(ResultType.DATA, new ByteBufferInput(contents), DEFAULT_UNPACKER_CONFIG);
     }
 }

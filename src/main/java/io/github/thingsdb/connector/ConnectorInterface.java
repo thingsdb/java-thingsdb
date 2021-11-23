@@ -58,9 +58,9 @@ public interface ConnectorInterface {
     public Future<Result> authenticate(String token);
     public Future<Result> authenticate(String username, String password);
 
-    public Future<Result> query(String code, String scope, byte[] args);
+    public Future<Result> query(String code, String scope, Vars args);
     public Future<Result> query(String code, String scope);
-    public Future<Result> query(String code, byte[] args);
+    public Future<Result> query(String code, Vars args);
     public Future<Result> query(String code);
 
     /**

@@ -3,7 +3,9 @@ package io.github.thingsdb.connector;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -13,14 +15,17 @@ import java.util.function.Function;
 
 import org.msgpack.core.MessageBufferPacker;
 import org.msgpack.core.MessagePack;
-
+import org.msgpack.core.buffer.MessageBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.github.thingsdb.connector.event.NodeStatus;
+import io.github.thingsdb.connector.event.RoomEvent;
 import io.github.thingsdb.connector.event.WarnEvent;
+import io.github.thingsdb.connector.exceptions.JoinException;
 import io.github.thingsdb.connector.exceptions.PackageIdNotFound;
 import io.github.thingsdb.connector.exceptions.ProtoUnhandled;
+
 
 /**
  *
@@ -29,15 +34,16 @@ public class Connector implements ConnectorInterface {
 
     private static Logger log = LoggerFactory.getLogger(Conn.class);
 
-    private final List<Node> nodes;
-    private char nextPid;
-    private int activeNodeId;
-    private MessageBufferPacker authPacker;
     private Conn conn = null;
-    private RespMap respMap;
+    private MessageBufferPacker authPacker;
     private String defaultScope;
     private boolean autoReconnect;
+    private char nextPid;
+    private int activeNodeId;
     private final ExecutorService executor;
+    private final List<Node> nodes;
+    private final RespMap respMap;
+    private final Map<Long, Room> rooms;
 
     public Function <NodeStatus, Void> onNodeStatus;
     public Function <WarnEvent, Void> onWarning;
@@ -49,7 +55,7 @@ public class Connector implements ConnectorInterface {
     public Connector(String host, int port) {
         nodes = Collections.synchronizedList(new ArrayList<>());
         respMap = new RespMap();
-
+        rooms = Collections.synchronizedMap(new HashMap<>());
         nextPid = 0;
         conn = null;
         authPacker = null;
@@ -135,14 +141,17 @@ public class Connector implements ConnectorInterface {
         }
     }
 
-    public Future<Result> query(String code, String scope, byte[] args) {
+    public Future<Result> query(String scope, String code, Vars vars) {
         MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
         try {
-            packer.packArrayHeader(args == null ? 2 : 3);
+            packer.packArrayHeader(vars == null ? 2 : 3);
             packer.packString(scope);
             packer.packString(code);
-            if (args != null) {
-                packer.addPayload(args);
+            if (vars != null) {
+                List<MessageBuffer> args = vars.toBufferList();
+                for (MessageBuffer buffer : args) {
+                    packer.addPayload(buffer.array());
+                }
             }
             packer.close();
 
@@ -154,21 +163,52 @@ public class Connector implements ConnectorInterface {
         }
     }
 
-    public Future<Result> query(String code, String scope) {
-        return query(code, scope, null);
+    public Future<Result> query(String scope, String code) {
+        return query(scope, code, (Vars) null);
     }
 
-    public Future<Result> query(String code, byte[] args) {
-        return query(code, getDefaultScope(), args);
+    public Future<Result> query(String code, Vars args) {
+        return query(getDefaultScope(), code, args);
     }
 
     public Future<Result> query(String code) {
-        return query(code, getDefaultScope(), null);
+        return query(getDefaultScope(), code, (Vars) null);
+    }
+
+    public Future<Result> join(String scope, long... roomIds) {
+        MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
+        try {
+            packer.packArrayHeader(1 + roomIds.length);
+            packer.packString(scope);
+            for (long roomId : roomIds) {
+                packer.packLong(roomId);
+            }
+            packer.close();
+            System.out.println("CLIENT JOIN...");
+            return ensureWrite(Proto.REQ_JOIN, packer);
+        } catch (IOException ex) {
+            CompletableFuture<Result> future = new CompletableFuture<>();
+            future.completeExceptionally(ex);
+            return future;
+        }
     }
 
     public String toString() {
         return conn == null ? "no connection" : conn.toString();
     }
+
+    protected void addRoom(Room room) {
+        rooms.put(room.getId(), room);
+    }
+
+    private void handleRoomEvent(Result res) throws PackageIdNotFound {
+        int size = res.unpackMapHeader();
+
+        RoomEvent RoomEvent.newFromResult(res, proto)
+        res.unpackString();
+        res.unpackLong();
+    }
+
 
     protected void handle(Pkg pkg) throws PackageIdNotFound {
         Result res;
@@ -190,13 +230,13 @@ public class Connector implements ConnectorInterface {
                     log.warn("Node Id %d is shutting down... (%s)", nodeStatus.id, toString());
                     reconnect();
                 }
-                break;
+                return;
             case ON_WARN:
                 res = Result.newResult(pkg.getData());
                 WarnEvent warnEvent;
                 try {
                     warnEvent = WarnEvent.newFromResult(res);
-                }catch (IOException e) {
+                } catch (IOException e) {
                     log.error("Failed to unpack ThingsDB warning event");
                     return;
                 }
@@ -205,13 +245,23 @@ public class Connector implements ConnectorInterface {
                 } else {
                     onWarning.apply(warnEvent);
                 }
+                return;
             case ON_ROOM_JOIN:
-                break;
             case ON_ROOM_LEAVE:
-                break;
             case ON_ROOM_EVENT:
-                break;
             case ON_ROOM_DELETE:
+
+                res = Result.newResult(pkg.getData());
+                RoomEvent ev;
+                Room room;
+                try {
+                    ev = RoomEvent.newFromResult(res, pkg.proto);
+                }  catch (IOException e) {
+                    log.error("Failed to unpack ThingsDB room event");
+                    return;
+                }
+                room = rooms.get(ev.id);
+                room.onEvent(ev);
                 break;
             default:
                 break;
@@ -325,6 +375,16 @@ public class Connector implements ConnectorInterface {
         return future;
     }
 
+    protected void asyncJoin(Room room, CompletableFuture<Boolean> future) {
+        executor.execute(() -> {
+            try {
+                room.asyncJoin();
+            } catch (JoinException ex) {
+                future.completeExceptionally(ex);
+            }
+        });
+    }
+
     private CompletableFuture<Result> ensureWrite(Proto proto, MessageBufferPacker packer) {
         Integer pid = getNextPid();
 
@@ -334,6 +394,7 @@ public class Connector implements ConnectorInterface {
             ? Pkg.newFromPacker(proto, pid.intValue(), packer)
             : new Pkg(proto, pid, 0);
 
+        System.out.println("ENSURE WRITE...");
         executor.execute(() -> {
             boolean fistAttempt = true;
             try {
@@ -345,6 +406,7 @@ public class Connector implements ConnectorInterface {
                     }
 
                     try {
+                        System.out.println("WRITE...");
                         conn.write(pkg.getBytes());
                     } catch (IOException e) {
                         TimeUnit.MILLISECONDS.sleep(500);
