@@ -16,21 +16,21 @@ public interface ConnectorInterface {
      * @param host the FQDN, host-name or ip-address of the host to add
      * @param port the port number to which the node is listening
      */
-    void addNode(String host, int port);
+    ConnectorInterface addNode(String host, int port);
 
     /**
      * Adds another {@link Node} to the connector.
      *
      * @param host the FQDN, host-name or ip-address of the host to add using the default port 9200
      */
-    void addNode(String host);
+    ConnectorInterface addNode(String host);
 
     /**
      * Set the default scope for the connector. Initially the default scope is set to `/thingsdb`.
      *
      * @param scope will be set to the new default scope.
      */
-    void setDefaultScope(String scope);
+    ConnectorInterface setDefaultScope(String scope);
 
     /**
      * @return the default scope of the connector
@@ -41,7 +41,7 @@ public interface ConnectorInterface {
      * Disable auto re-connect. Auto re-connect is enabled be default.
      * Once auto re-connect is disabled, it is not possible enable this option.
      */
-    void disableAutoReconnect();
+    ConnectorInterface disableAutoReconnect();
 
     /**
      * Close the connection.
@@ -53,7 +53,7 @@ public interface ConnectorInterface {
      * Connect to ThingsDB.
      * @throws IOException
      */
-    void connect() throws IOException;
+    Connector connect() throws IOException;
 
     public Future<Result> authenticate(String token);
     public Future<Result> authenticate(String username, String password);

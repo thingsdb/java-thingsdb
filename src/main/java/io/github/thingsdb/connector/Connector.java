@@ -16,6 +16,7 @@ import java.util.function.Function;
 import org.msgpack.core.MessageBufferPacker;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.buffer.MessageBuffer;
+import org.msgpack.value.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,18 +71,21 @@ public class Connector implements ConnectorInterface {
     }
 
     @Override
-    public void addNode(String host, int port) {
+    public Connector addNode(String host, int port) {
         nodes.add(new Node(host, port));
+        return this;
     }
 
     @Override
-    public void addNode(String host) {
+    public Connector addNode(String host) {
         nodes.add(new Node(host, 9200));
+        return this;
     }
 
     @Override
-    public synchronized void setDefaultScope(String scope) {
+    public synchronized Connector setDefaultScope(String scope) {
         defaultScope = scope;
+        return this;
     }
 
     @Override
@@ -90,8 +94,9 @@ public class Connector implements ConnectorInterface {
     }
 
     @Override
-    public synchronized void disableAutoReconnect() {
+    public synchronized Connector disableAutoReconnect() {
         autoReconnect = false;
+        return this;
     }
 
     public void close() throws IOException {
@@ -99,12 +104,13 @@ public class Connector implements ConnectorInterface {
         conn.close();
     }
 
-    public void connect() throws IOException {
+    public Connector connect() throws IOException {
         Node node = getNode();
         conn = new Conn(node, this);
         conn.start();
         ping();
         alive();
+        return this;
     }
 
     public Future<Result> authenticate(String token) {
@@ -175,16 +181,53 @@ public class Connector implements ConnectorInterface {
         return query(getDefaultScope(), code, (Vars) null);
     }
 
-    public Future<Result> join(String scope, long... roomIds) {
+    public Future<Result> run(String scope, String procedure, ArgumentInterface arguments) {
         MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
         try {
-            packer.packArrayHeader(1 + roomIds.length);
+            packer.packArrayHeader(arguments == null ? 2 : 3);
             packer.packString(scope);
-            for (long roomId : roomIds) {
-                packer.packLong(roomId);
+            packer.packString(procedure);
+            if (arguments != null) {
+                List<MessageBuffer> args = arguments.toBufferList();
+                for (MessageBuffer buffer : args) {
+                    packer.addPayload(buffer.array());
+                }
             }
             packer.close();
-            System.out.println("CLIENT JOIN...");
+
+            return ensureWrite(Proto.REQ_RUN, packer);
+        } catch (IOException ex) {
+            CompletableFuture<Result> future = new CompletableFuture<>();
+            future.completeExceptionally(ex);
+            return future;
+        }
+    }
+
+    public Future<Result> run(String procedure, ArgumentInterface arguments) {
+        return run(getDefaultScope(), procedure, arguments);
+    }
+
+    public Future<Result> run(String scope, String procedure) {
+        return run(scope, procedure, (Vars) null);
+    }
+
+    public Future<Result> run(String procedure) {
+        return run(getDefaultScope(), procedure, (Vars) null);
+    }
+
+    public String toString() {
+        return conn == null ? "no connection" : conn.toString();
+    }
+
+    protected Future<Result> join(String scope, ArrayList<Long> roomIds) {
+        MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
+        try {
+            packer.packArrayHeader(1 + roomIds.size());
+            packer.packString(scope);
+            for (Long roomId : roomIds) {
+                packer.packLong(roomId.longValue());
+            }
+            packer.close();
             return ensureWrite(Proto.REQ_JOIN, packer);
         } catch (IOException ex) {
             CompletableFuture<Result> future = new CompletableFuture<>();
@@ -193,22 +236,64 @@ public class Connector implements ConnectorInterface {
         }
     }
 
-    public String toString() {
-        return conn == null ? "no connection" : conn.toString();
+    protected Future<Result> join(String scope, Long roomId) {
+        MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
+        try {
+            packer.packArrayHeader(2);
+            packer.packString(scope);
+            packer.packLong(roomId.longValue());
+            packer.close();
+            return ensureWrite(Proto.REQ_JOIN, packer);
+        } catch (IOException ex) {
+            CompletableFuture<Result> future = new CompletableFuture<>();
+            future.completeExceptionally(ex);
+            return future;
+        }
+    }
+
+    protected Future<Result> leave(String scope, Long roomId) {
+        MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
+        try {
+            packer.packArrayHeader(2);
+            packer.packString(scope);
+            packer.packLong(roomId.longValue());
+            packer.close();
+            return ensureWrite(Proto.REQ_LEAVE, packer);
+        } catch (IOException ex) {
+            CompletableFuture<Result> future = new CompletableFuture<>();
+            future.completeExceptionally(ex);
+            return future;
+        }
+    }
+
+    protected Future<Result> emit(String scope, Room room, String event, Args args) {
+        MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
+        List<Value> list = args.getList();
+        try {
+            packer.packArrayHeader(3 + list.size());
+            packer.packString(scope);
+            packer.packLong(room.getId().longValue());
+            packer.packString(event);
+
+            for (Value v : list) {
+                packer.packValue(v);
+            }
+            packer.close();
+            return ensureWrite(Proto.REQ_EMIT, packer);
+        } catch (IOException ex) {
+            CompletableFuture<Result> future = new CompletableFuture<>();
+            future.completeExceptionally(ex);
+            return future;
+        }
     }
 
     protected void addRoom(Room room) {
         rooms.put(room.getId(), room);
     }
 
-    private void handleRoomEvent(Result res) throws PackageIdNotFound {
-        int size = res.unpackMapHeader();
-
-        RoomEvent RoomEvent.newFromResult(res, proto)
-        res.unpackString();
-        res.unpackLong();
+    protected void delRoom(Room room) {
+        rooms.remove(room.getId());
     }
-
 
     protected void handle(Pkg pkg) throws PackageIdNotFound {
         Result res;
@@ -261,8 +346,11 @@ public class Connector implements ConnectorInterface {
                     return;
                 }
                 room = rooms.get(ev.id);
-                room.onEvent(ev);
-                break;
+                if (room != null) {
+                    room.onEvent(ev);
+                }
+
+                return;
             default:
                 break;
         }
@@ -302,16 +390,22 @@ public class Connector implements ConnectorInterface {
                 Node node = getNextNode();
                 conn = new Conn(node, this);
                 conn.start();
-                Future<Result> fut = write(Proto.REQ_AUTH, authPacker);
                 try {
-                    fut.get();
+                    write(Proto.REQ_AUTH, authPacker).get();
                 } catch (Exception e) {
                     conn.close();
                     return;
                 }
-                // TODO: re-join rooms
+                // Re-join rooms
+                Map<String, ArrayList<Long>> roomMap = new HashMap<>();
+                for (Room room : rooms.values()) {
+                    roomMap.computeIfAbsent(room.getScope(), s -> new ArrayList<>()).add(room.getId());
+                }
+                for (String scope : roomMap.keySet()) {
+                    join(scope, roomMap.get(scope));
+                }
             }
-        } catch (IOException e) {};
+        } catch (IOException ex) {};
     }
 
     private void alive() {
@@ -375,7 +469,7 @@ public class Connector implements ConnectorInterface {
         return future;
     }
 
-    protected void asyncJoin(Room room, CompletableFuture<Boolean> future) {
+    protected void asyncJoin(Room room, CompletableFuture<Room> future) {
         executor.execute(() -> {
             try {
                 room.asyncJoin();
@@ -394,7 +488,6 @@ public class Connector implements ConnectorInterface {
             ? Pkg.newFromPacker(proto, pid.intValue(), packer)
             : new Pkg(proto, pid, 0);
 
-        System.out.println("ENSURE WRITE...");
         executor.execute(() -> {
             boolean fistAttempt = true;
             try {
@@ -406,7 +499,6 @@ public class Connector implements ConnectorInterface {
                     }
 
                     try {
-                        System.out.println("WRITE...");
                         conn.write(pkg.getBytes());
                     } catch (IOException e) {
                         TimeUnit.MILLISECONDS.sleep(500);

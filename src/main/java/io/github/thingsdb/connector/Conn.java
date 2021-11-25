@@ -44,7 +44,7 @@ class Conn extends Thread {
             try {
                 n = channel.read(rbuf);
             } catch (IOException e) {
-                e.printStackTrace();
+                log.warn(e.getMessage());
                 break;
             }
 

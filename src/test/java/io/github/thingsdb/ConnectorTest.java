@@ -6,10 +6,11 @@ import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
+import org.apache.log4j.BasicConfigurator;
 import org.junit.Test;
 
+import io.github.thingsdb.connector.Args;
 import io.github.thingsdb.connector.Connector;
 import io.github.thingsdb.connector.Result;
 import io.github.thingsdb.connector.ResultType;
@@ -21,15 +22,22 @@ import io.github.thingsdb.connector.Vars;
 public class ConnectorTest
 {
     private String token = System.getenv("TI_TOKEN");
+
+    { BasicConfigurator.configure(); }
+
     /**
-     * Rigorous Test :-)
      * @throws IOException
      * @throws InterruptedException
      * @throws ExecutionException
      */
     @Test
-    public void shouldConnectToPlayground() throws IOException, InterruptedException, ExecutionException
+    public void shouldConnectAndQuery() throws IOException, InterruptedException, ExecutionException
     {
+        if (token == null) {
+            // A valid TOKEN is required to perform this test
+            return;
+        }
+
         Vars vars1, vars2;
         Future<Result> fut, fut2;
         Result res, res2;
@@ -69,6 +77,51 @@ public class ConnectorTest
         assertEquals(res.unpackInt(), 124760);
         assertEquals(res2.unpackInt(), 124792);
 
-        TimeUnit.SECONDS.sleep(1);
+        client.close();
+    }
+
+    /**
+     * @throws IOException
+     * @throws InterruptedException
+     * @throws ExecutionException
+     */
+    @Test
+    public void shouldConnectAndRun() throws IOException, InterruptedException, ExecutionException
+    {
+        if (token == null) {
+            // A valid TOKEN is required to perform this test
+            return;
+        }
+
+        Vars vars;
+        Args args;
+        Result res;
+        Connector client = new Connector("localhost");
+        res = client
+            .setDefaultScope("//stuff")
+            .connect()
+            .authenticate(token)
+            .get();
+        assertEquals(res.TYPE, ResultType.OK);
+
+        res = client.query("try(new_procedure('multiply', |a, b| a*b));").get();
+        assertEquals(res.TYPE, ResultType.DATA);
+
+        vars = new Vars();
+        vars.setInt("a", 6);
+        vars.setInt("b", 7);
+
+        res = client.run("multiply", vars).get();
+        assertEquals(res.unpackInt(), 42);
+
+        args = new Args();
+        args.addInt(8);
+        args.addInt(9);
+
+        res = client.run("multiply", args).get();
+        assertEquals(res.unpackInt(), 72);
+
+        // TimeUnit.SECONDS.sleep(1);
+        client.close();
     }
 }

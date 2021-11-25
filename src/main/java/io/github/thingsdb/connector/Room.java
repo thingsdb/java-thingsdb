@@ -1,8 +1,6 @@
 package io.github.thingsdb.connector;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -21,19 +19,27 @@ abstract public class Room implements RoomInterface {
 
     private final String code;
     private final String scope;
-    private final Map<String, Method> eventHandlers;
+    private final Map<String, Handler> eventHandlers;
     private Long id;
-    private CompletableFuture<Boolean> waitJoinfuture;
+    private CompletableFuture<Room> waitJoinfuture;
 
     private static Logger log = LoggerFactory.getLogger(Conn.class);
+
+    public interface Handler {
+        void call(Result args);
+    }
+
+    public Room on(String event, Handler fn) {
+        this.eventHandlers.put(event, fn);
+        return this;
+    }
 
     public Room(Connector client, String scope, String code) {
         this.client = client;
         this.code = code;
         this.scope = scope;
         this.id = null;
-        eventHandlers = new HashMap<String, Method>();
-        System.out.println("INIT ROOM..");
+        eventHandlers = new HashMap<String, Handler>();
     }
 
     public Room(Connector client, String scope, Long id) {
@@ -41,8 +47,7 @@ abstract public class Room implements RoomInterface {
         this.id = id;
         this.scope = scope;
         this.code = null;
-        eventHandlers = new HashMap<String, Method>();
-        System.out.println("INIT ROOM..");
+        eventHandlers = new HashMap<String, Handler>();
     }
 
     public Room(Connector client, String code) {
@@ -50,8 +55,7 @@ abstract public class Room implements RoomInterface {
         this.code = code;
         this.id = null;
         this.scope = client.getDefaultScope();
-        eventHandlers = new HashMap<String, Method>();
-        System.out.println("INIT ROOM..");
+        eventHandlers = new HashMap<String, Handler>();
     }
 
     public Room(Connector client, Long id) {
@@ -59,14 +63,24 @@ abstract public class Room implements RoomInterface {
         this.id = id;
         this.code = null;
         this.scope = client.getDefaultScope();
-        eventHandlers = new HashMap<String, Method>();
-        System.out.println("INIT ROOM..");
+        eventHandlers = new HashMap<String, Handler>();
     }
 
-    public Future<Boolean> join() {
+    public Future<Room> join() {
         waitJoinfuture = new CompletableFuture<>();
         client.asyncJoin(this, waitJoinfuture);
         return waitJoinfuture;
+    }
+
+    public Future<Result> leave() throws JoinException {
+        if (id == null) {
+            throw new JoinException("Room Id is zero (0), most likely the room has never been joined");
+        }
+        return client.leave(scope, id);
+    }
+
+    public Future<Result> emit(String event, Args args) {
+        return client.emit(scope, this, event, args);
     }
 
     protected void asyncJoin() throws JoinException {
@@ -95,7 +109,7 @@ abstract public class Room implements RoomInterface {
             }
 
             if (nRooms == 0) {
-                throw new JoinException(String.format("Room Id %l not found. The Id was returned using ThingsDB code: %s", roomId, code));
+                throw new JoinException(String.format("Room Id %d not found. The Id was returned using ThingsDB code: %s", roomId, code));
             }
         } else {
             roomId = id.longValue();
@@ -105,7 +119,7 @@ abstract public class Room implements RoomInterface {
                 nRooms = res.unpackArrayHeader();
 
                 if (nRooms == 0) {
-                    throw new JoinException(String.format("Room Id %l not found", roomId));
+                    throw new JoinException(String.format("Room Id %d not found", roomId));
                 }
                 roomId = res.unpackLong();
             } catch (Exception e) {
@@ -121,33 +135,35 @@ abstract public class Room implements RoomInterface {
     protected void onEvent(RoomEvent ev) {
         switch (ev.proto) {
             case ON_ROOM_JOIN:
-                log.info("ON JOIN");
-                System.out.println("!!! ON JOIN !!!");
                 onJoin();
                 if (!waitJoinfuture.isDone()) {
-                    waitJoinfuture.complete(true);
+                    waitJoinfuture.complete(this);
                 }
                 break;
+            case ON_ROOM_LEAVE:
+                client.delRoom(this);
+                this.onLeave();
+                break;
             case ON_ROOM_EVENT:
-                Method func = eventHandlers.get(ev.event);
-                if (func != null) {
+                Handler fn = eventHandlers.get(ev.event);
+                if (fn != null) {
                     try {
-                        func.invoke(this, ev.args);
-                    } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-                        log.error("Failed to invoke handler for event `%s`: %s", ev.event, e.getMessage());
+                        fn.call(ev.args);
+                    } catch (Exception ex) {
+                        log.error(ex.getMessage());
                     }
                     return;
                 }
                 onEmit(ev.event, ev.args);
+                break;
+            case ON_ROOM_DELETE:
+                client.delRoom(this);
+                this.onDelete();
+                break;
+
             default:
                 break;
         };
-    }
-
-    protected void handleEvent(String event, String methodName) throws NoSuchMethodException, SecurityException {
-        System.out.println("ADDING EVENT HANDLER");
-        Method m = this.getClass().getMethod(methodName, Result.class);
-        eventHandlers.put(event, m);
     }
 
     public Long getId() {

@@ -1,20 +1,15 @@
 package io.github.thingsdb;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
+import org.apache.log4j.BasicConfigurator;
 
+import io.github.thingsdb.connector.Args;
 import io.github.thingsdb.connector.Connector;
-import io.github.thingsdb.connector.Result;
-import io.github.thingsdb.connector.ResultType;
-import io.github.thingsdb.connector.Room;
-import io.github.thingsdb.helpers.MsgRoom;
+import io.github.thingsdb.helpers.ChatRoom;
 
 /**
  * Unit test for simple App.
@@ -31,18 +26,24 @@ public class RoomTest
     @Test
     public void shouldJoinRoom() throws IOException, InterruptedException, ExecutionException
     {
-        Future<Boolean> waitRoom;
+        BasicConfigurator.configure();
+
+        if (token == null) {
+            // A valid TOKEN is required to perform this test
+            return;
+        }
+
         Connector client = new Connector("localhost");
-        MsgRoom chatRoom = new MsgRoom(client, "//stuff", ".chat.id();");
+        ChatRoom chatRoom = new ChatRoom(client, "//stuff", ".chat.id();");
 
         client.connect();
         client.authenticate(token).get();
         client.query("//stuff", ".chat = room();").get();
 
-        waitRoom = chatRoom.join();
-        waitRoom.get();
+        Args args = new Args();
+        args.addString("Hello!");
+        chatRoom.join().get().emit("new-msg", args).get();
 
-        TimeUnit.SECONDS.sleep(1);
-
+        TimeUnit.SECONDS.sleep(10);
     }
 }
