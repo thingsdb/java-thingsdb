@@ -44,6 +44,8 @@ public class RoomTest
         args.addString("Hello!");
         chatRoom.join().get().emit("new-msg", args).get();
 
-        TimeUnit.SECONDS.sleep(10);
+        TimeUnit.SECONDS.sleep(1);
+
+        client.close();
     }
 }

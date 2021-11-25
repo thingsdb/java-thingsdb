@@ -412,10 +412,10 @@ public class Connector implements ConnectorInterface {
         executor.execute(() -> {
             try {
                 while (autoReconnect) {
-                    TimeUnit.MILLISECONDS.sleep(500);
                     if (!conn.isConnected()) {
                         reconnect();
                     }
+                    TimeUnit.MILLISECONDS.sleep(500);
                 }
             } catch (InterruptedException e) { }
         });

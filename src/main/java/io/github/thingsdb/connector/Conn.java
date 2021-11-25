@@ -35,7 +35,6 @@ class Conn extends Thread {
 
     @Override
     public void run() {
-
         Pkg pkg = null;
         ByteBuffer rbuf = buf;
 
@@ -44,7 +43,6 @@ class Conn extends Thread {
             try {
                 n = channel.read(rbuf);
             } catch (IOException e) {
-                log.warn(e.getMessage());
                 break;
             }
 

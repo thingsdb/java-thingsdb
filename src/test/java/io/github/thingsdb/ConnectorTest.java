@@ -39,23 +39,20 @@ public class ConnectorTest
         }
 
         Vars vars1, vars2;
-        Future<Result> fut, fut2;
-        Result res, res2;
+        Result res, res1, res2;
+        Future<Result> fut1, fut2;
         Connector client = new Connector("localhost");
         client.connect();
 
-        fut = client.authenticate(token);
-        res = fut.get();
+        res = client.authenticate(token).get();
         assertEquals(res.TYPE, ResultType.OK);
 
-        fut = client.query("6 * 7;");
-        res = fut.get();
+        res = client.query("6 * 7;").get();
         assertEquals(res.TYPE, ResultType.DATA);
         assertEquals(res.unpackInt(),  42);
 
-        fut = client.query("6 / 0;");
         try {
-            fut.get();
+            client.query("6 / 0;").get();
             assertTrue("Exceptoin ZeroDivError should have been raided", 1 == 0);
         } catch (Exception e) {
             assertEquals(e.getMessage(), "io.github.thingsdb.connector.exceptions.ZeroDivError: division or modulo by zero");
@@ -67,14 +64,13 @@ public class ConnectorTest
         vars2 = new Vars();
         vars2.setInt("val", 42);
 
-        fut = client.query("range(500).reduce(|a, b| a + b, val);", vars1);
-
+        fut1 = client.query("range(500).reduce(|a, b| a + b, val);", vars1);
         fut2 = client.query("range(500).reduce(|a, b| a + b, val);", vars2);
 
-        res = fut.get();
+        res1 = fut1.get();
         res2 = fut2.get();
 
-        assertEquals(res.unpackInt(), 124760);
+        assertEquals(res1.unpackInt(), 124760);
         assertEquals(res2.unpackInt(), 124792);
 
         client.close();
