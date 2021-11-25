@@ -26,9 +26,33 @@ public class Vars implements ArgumentInterface {
         return this;
     }
 
+    public Vars setBool(String key, boolean value) throws IOException {
+        packer = null;
+        map.put(ValueFactory.newString(key), ValueFactory.newBoolean(value));
+        return this;
+    }
+
     public Vars setInt(String key, int value) throws IOException {
         packer = null;
         map.put(ValueFactory.newString(key), ValueFactory.newInteger(value));
+        return this;
+    }
+
+    public Vars setLong(String key, long value) throws IOException {
+        packer = null;
+        map.put(ValueFactory.newString(key), ValueFactory.newInteger(value));
+        return this;
+    }
+
+    public Vars setFloat(String key, float value) throws IOException {
+        packer = null;
+        map.put(ValueFactory.newString(key), ValueFactory.newFloat(value));
+        return this;
+    }
+
+    public Vars setDouble(String key, double value) throws IOException {
+        packer = null;
+        map.put(ValueFactory.newString(key), ValueFactory.newFloat(value));
         return this;
     }
 
@@ -36,6 +60,22 @@ public class Vars implements ArgumentInterface {
         packer = null;
         map.put(ValueFactory.newString(key), ValueFactory.newString(value));
         return this;
+    }
+
+    public Vars setArgs(String key, Args value) throws IOException {
+        packer = null;
+        map.put(ValueFactory.newString(key), ValueFactory.newArray(value.getList()));
+        return this;
+    }
+
+    public Vars setVars(String key, Vars value) throws IOException {
+        packer = null;
+        map.put(ValueFactory.newString(key), value.getMap().build());
+        return this;
+    }
+
+    protected MapBuilder getMap() {
+        return map;
     }
 
     @Override

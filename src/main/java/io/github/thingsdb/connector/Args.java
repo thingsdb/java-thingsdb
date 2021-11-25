@@ -21,25 +21,60 @@ public class Args implements ArgumentInterface {
         arr = new ArrayList<>();
     }
 
-    public void addNil() throws IOException {
+    public Args addNil() throws IOException {
         packer = null;
         arr.add(ValueFactory.newNil());
+        return this;
     }
 
-    public void addInt(int value) throws IOException {
+    public Args addBool(boolean value) throws IOException {
+        packer = null;
+        arr.add(ValueFactory.newBoolean(value));
+        return this;
+    }
+
+    public Args addInt(int value) throws IOException {
         packer = null;
         arr.add(ValueFactory.newInteger(value));
+        return this;
     }
 
-    public void addLong(long value) throws IOException {
+    public Args addLong(long value) throws IOException {
         packer = null;
         arr.add(ValueFactory.newInteger(value));
+        return this;
     }
 
-    public void addString(String value) throws IOException {
+    public Args addFloat(float value) throws IOException {
+        packer = null;
+        arr.add(ValueFactory.newFloat(value));
+        return this;
+    }
+
+    public Args addDouble(double value) throws IOException {
+        packer = null;
+        arr.add(ValueFactory.newFloat(value));
+        return this;
+    }
+
+    public Args addString(String value) throws IOException {
         packer = null;
         arr.add(ValueFactory.newString(value));
+        return this;
     }
+
+    public Args addArgs(Args value) throws IOException {
+        packer = null;
+        arr.add(ValueFactory.newArray(value.getList()));
+        return this;
+    }
+
+    public Args addVars(Vars value) throws IOException {
+        packer = null;
+        arr.add(value.getMap().build());
+        return this;
+    }
+
 
     protected List<Value> getList() {
         return arr;
