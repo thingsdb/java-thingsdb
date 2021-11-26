@@ -20,6 +20,8 @@ import io.github.thingsdb.connector.Connector;
 import io.github.thingsdb.connector.Result;
 import io.github.thingsdb.connector.Vars;
 
+...
+
 Connector client = new Connector("localhost");  // or "hostname" and port
 client
     .setDefaultScope("//stuff")     // change the default scope
