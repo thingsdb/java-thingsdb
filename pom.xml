@@ -82,6 +82,9 @@
                               <goals>
                                   <goal>sign</goal>
                               </goals>
+                              <configuration>
+                                <keyname>0x058F96DF</keyname>
+                              </configuration>
                           </execution>
                       </executions>
                   </plugin>
