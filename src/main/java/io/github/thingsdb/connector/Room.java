@@ -83,6 +83,10 @@ abstract public class Room implements RoomInterface {
         return client.emit(scope, this, event, args);
     }
 
+    public Future<Result> emitPeers(String event, Args args) {
+        return client.emitPeers(scope, this, event, args);
+    }
+
     protected void asyncJoin() throws JoinException {
         long roomId;
         int nRooms;

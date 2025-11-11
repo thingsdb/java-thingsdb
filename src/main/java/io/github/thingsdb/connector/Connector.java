@@ -287,6 +287,27 @@ public class Connector implements ConnectorInterface {
         }
     }
 
+    protected Future<Result> emitPeers(String scope, Room room, String event, Args args) {
+        MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
+        List<Value> list = args.getList();
+        try {
+            packer.packArrayHeader(3 + list.size());
+            packer.packString(scope);
+            packer.packLong(room.getId().longValue());
+            packer.packString(event);
+
+            for (Value v : list) {
+                packer.packValue(v);
+            }
+            packer.close();
+            return ensureWrite(Proto.REQ_EMIT_PEERS, packer);
+        } catch (IOException ex) {
+            CompletableFuture<Result> future = new CompletableFuture<>();
+            future.completeExceptionally(ex);
+            return future;
+        }
+    }
+
     protected void addRoom(Room room) {
         rooms.put(room.getId(), room);
     }

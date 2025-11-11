@@ -7,7 +7,6 @@ public enum Proto {
 	/**
 	 * Events
 	 */
-
     ON_NODE_STATUS  ((byte) 0, "ProtoOnNodeStatus"),
     ON_WARN         ((byte) 5, "ProtoOnWarn"),
     ON_ROOM_JOIN    ((byte) 6, "ProtoOnRoomJoin"),
@@ -26,14 +25,14 @@ public enum Proto {
 	/**
 	 * Requests
 	 */
-
     REQ_PING        ((byte) 32, "ProtoReqPing"),
     REQ_AUTH        ((byte) 33, "ProtoReqAuth"),
     REQ_QUERY       ((byte) 34, "ProtoReqQuery"),
     REQ_RUN         ((byte) 37, "ProtoReqRun"),
     REQ_JOIN        ((byte) 38, "ProtoReqJoin"),
     REQ_LEAVE       ((byte) 39, "ProtoReqLeave"),
-    REQ_EMIT        ((byte) 40, "ProtoReqEmit");
+    REQ_EMIT        ((byte) 40, "ProtoReqEmit"),
+    REQ_EMIT_PEERS  ((byte) 41, "ProtoReqEmitPeers");
 
     private final byte tp;
     private final String name;
