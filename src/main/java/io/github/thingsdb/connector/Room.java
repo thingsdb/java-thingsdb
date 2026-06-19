@@ -37,7 +37,7 @@ abstract public class Room implements RoomInterface {
     public Room(Connector client, String scope, String code) {
         this.client = client;
         this.code = code;
-        this.scope = scope;
+        this.scope = ScopeHelper.fcScope(scope);
         this.id = null;
         eventHandlers = new HashMap<String, Handler>();
     }
@@ -45,7 +45,7 @@ abstract public class Room implements RoomInterface {
     public Room(Connector client, String scope, Long id) {
         this.client = client;
         this.id = id;
-        this.scope = scope;
+        this.scope = ScopeHelper.fcScope(scope);
         this.code = null;
         eventHandlers = new HashMap<String, Handler>();
     }
@@ -54,7 +54,7 @@ abstract public class Room implements RoomInterface {
         this.client = client;
         this.code = code;
         this.id = null;
-        this.scope = client.getDefaultScope();
+        this.scope = ScopeHelper.fcScope(client.getDefaultScope());
         eventHandlers = new HashMap<String, Handler>();
     }
 
@@ -62,7 +62,7 @@ abstract public class Room implements RoomInterface {
         this.client = client;
         this.id = id;
         this.code = null;
-        this.scope = client.getDefaultScope();
+        this.scope = ScopeHelper.fcScope(client.getDefaultScope());
         eventHandlers = new HashMap<String, Handler>();
     }
 

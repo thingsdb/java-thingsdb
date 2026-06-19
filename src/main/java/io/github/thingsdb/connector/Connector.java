@@ -28,9 +28,6 @@ import io.github.thingsdb.connector.exceptions.PackageIdNotFound;
 import io.github.thingsdb.connector.exceptions.ProtoUnhandled;
 
 
-/**
- *
- */
 public class Connector implements ConnectorInterface {
 
     private static Logger log = LoggerFactory.getLogger(Conn.class);
@@ -44,7 +41,7 @@ public class Connector implements ConnectorInterface {
     private final ExecutorService executor;
     private final List<Node> nodes;
     private final RespMap respMap;
-    private final Map<Long, Room> rooms;
+    private final Map<String, Map<Long, Room>> rooms;
 
     public Function <NodeStatus, Void> onNodeStatus;
     public Function <WarnEvent, Void> onWarning;
@@ -309,11 +306,14 @@ public class Connector implements ConnectorInterface {
     }
 
     protected void addRoom(Room room) {
-        rooms.put(room.getId(), room);
+        rooms.computeIfAbsent(room.getScope(), k -> new HashMap<>()).put(room.getId(), room);
     }
 
     protected void delRoom(Room room) {
-        rooms.remove(room.getId());
+        rooms.computeIfPresent(room.getScope(), (scopeKey, scopeMap) -> {
+            scopeMap.remove(room.getId());
+            return scopeMap.isEmpty() ? null : scopeMap;
+        });
     }
 
     protected void handle(Pkg pkg) throws PackageIdNotFound {
@@ -359,18 +359,29 @@ public class Connector implements ConnectorInterface {
 
                 res = Result.newResult(pkg.getData());
                 RoomEvent ev;
-                Room room;
                 try {
                     ev = RoomEvent.newFromResult(res, pkg.proto);
                 }  catch (IOException e) {
                     log.error("Failed to unpack ThingsDB room event");
                     return;
                 }
-                room = rooms.get(ev.id);
-                if (room != null) {
-                    room.onEvent(ev);
+                if (ev.scope == null) {
+                    for (Map<Long, Room> roomMap : rooms.values()) {
+                        Room room = roomMap.get(ev.id);
+                        if (room != null) {
+                            room.onEvent(ev);
+                            break;
+                        }
+                    }
+                } else {
+                    Map<Long, Room> roomMap = rooms.get(ev.scope);
+                    if (roomMap != null) {
+                        Room room = roomMap.get(ev.id);
+                        if (room != null) {
+                            room.onEvent(ev);
+                        }
+                    }
                 }
-
                 return;
             default:
                 break;
@@ -418,12 +429,14 @@ public class Connector implements ConnectorInterface {
                     return;
                 }
                 // Re-join rooms
-                Map<String, ArrayList<Long>> roomMap = new HashMap<>();
-                for (Room room : rooms.values()) {
-                    roomMap.computeIfAbsent(room.getScope(), s -> new ArrayList<>()).add(room.getId());
+                Map<String, ArrayList<Long>> roomIdMap = new HashMap<>();
+                for (Map<Long, Room> roomMap : rooms.values()) {
+                    for (Room room : roomMap.values()) {
+                        roomIdMap.computeIfAbsent(room.getScope(), s -> new ArrayList<>()).add(room.getId());
+                    }
                 }
-                for (String scope : roomMap.keySet()) {
-                    join(scope, roomMap.get(scope));
+                for (String scope : roomIdMap.keySet()) {
+                    join(scope, roomIdMap.get(scope));
                 }
             }
         } catch (IOException ex) {};

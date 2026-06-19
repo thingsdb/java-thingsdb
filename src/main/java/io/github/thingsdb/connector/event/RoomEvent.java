@@ -7,30 +7,42 @@ import io.github.thingsdb.connector.Result;
 
 public class RoomEvent {
     public final Proto proto;
+    public final String scope;
     public final long id;
     public final String event;
     public final Result args;
 
     static public RoomEvent newFromResult(Result result, Proto proto) throws IOException {
         int size = result.unpackMapHeader();
-
-        result.unpackString();  // id
-        long id = result.unpackLong();
+        long id = 0;
         String event = null;
+        String scope = null;
         Result args = null;
 
-        if (size == 3) {
-            result.unpackString();  // event
-            event = result.unpackString();
+        for (int i = 0; i < size; i++) {
+            String key = result.unpackString();
 
-            result.unpackString();  // args
-            args = result;
+            if ("id".equals(key)) {
+                id = result.unpackLong();
+            } else if ("scope".equals(key)) {
+                scope = result.unpackString();
+            } else if ("event".equals(key)) {
+                event = result.unpackString();
+            } else if ("args".equals(key)) {
+                args = result;
+                // Assign the remaining unpacked to args
+                // Since "args" is always last, we can stop processing keys
+                break;
+            } else {
+                result.skipValue();
+            }
         }
-        return new RoomEvent(proto, id, event, args);
+        return new RoomEvent(proto, scope, id, event, args);
     }
 
-    public RoomEvent(Proto proto, long id, String event, Result args) {
+    public RoomEvent(Proto proto, String scope, long id, String event, Result args) {
         this.proto = proto;
+        this.scope = scope;
         this.id = id;
         this.event = event;
         this.args = args;
